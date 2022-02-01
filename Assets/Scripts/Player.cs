@@ -1,160 +1,336 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Photon.Realtime;
+using Photon.Pun;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using TMPro;
 
-public class Player : MonoBehaviour
+public class Player : MonoBehaviourPun
 {
-    public Animator anim;
 
 
 
-    public float walkSpeed = 3.5f;
-    public float kosuHizi = 6.5f;
-    public float ziplamaGucu = 8.0f;
-    public float yercekimi = 30.0f;
 
-
-
+    // ! Değişkenler
     Vector3 moveDirection = Vector3.zero;
+    private float vSpeed;
+    private float walkSpeed = 5.5f;
+    private bool canMove = true;
 
+    private float yercekimi = 100.0f;
+    private float moveWS, moveAD;
+    private bool yetenekV = false;
+
+
+
+
+
+
+
+    // ! Referanslar
+    public GameObject yetenekler;
     private CharacterController characterController;
+    public Animator anim;
+    public Slider Can;
+    PhotonView MyPhotonView;
+    public GameObject saldirsavunGO;
+    public TextMeshProUGUI saldirsavun;
+    public Transform ptr2, ptr3;
 
+    public GameObject playerG;
 
-    public bool canMove = true;
+    public FixedJoystick variableJoystick;
+    public GameObject Joystick;
+    public GameObject Joystick2;
 
+    private GameObject canvas;
+    private Yonetici oyunYoneticisi;
 
-    bool Walk = false;
-
-
-
-
-
-
-
-    public GameObject SkillUI;
-
-    Vector3 enemyPosition;
-    Vector3 currentPostion;
-
-    void Start()
+    private void Awake()
     {
+        if (Application.platform == RuntimePlatform.Android)
+        {
+            Joystick.SetActive(true);
+        }
+    }
+
+
+
+    private void Start()
+    {
+        MyPhotonView = GetComponent<PhotonView>();
         characterController = GetComponent<CharacterController>();
-     
+
+        if (!MyPhotonView.IsMine)
+        {
+            Destroy(GetComponentInChildren<Camera>().gameObject);
+            GetComponentInChildren<Canvas>().gameObject.SetActive(false);
+        }
+
+        ptr2 = GameObject.FindGameObjectWithTag("ptr2").transform;
+        ptr3 = GameObject.FindGameObjectWithTag("ptr3").transform;
+
+
+        oyunYoneticisi = GameObject.FindGameObjectWithTag("yonetici").GetComponent<Yonetici>();
+    }
+
+
+
+
+
+
+
+
+    private void Update()
+    {
+        playerG = GameObject.FindGameObjectWithTag("player2");
+        if (MyPhotonView.IsMine)
+        {
+            Move();
+            AnimasyonKontrol(animationName: "Attack1");
+            AnimasyonKontrol(animationName: "Attack2");
+            AnimasyonKontrol(animationName: "Attack3");
+
+            if (oyunYoneticisi.oyuncu1 && !canMove)
+            {
+                this.saldirsavun.text = "SALDIR";
+                yetenekler.SetActive(true);
+            }
+            else if (!oyunYoneticisi.oyuncu1 && !canMove)
+            {
+                this.saldirsavun.text = "SAVUN";
+                yetenekler.SetActive(false);
+            }
+
+
+        }
+
 
     }
 
-    
-    void Update()
+
+    private void Move()
     {
-
-        Vector3 forward = transform.TransformDirection(Vector3.forward);
-        Vector3 right = transform.TransformDirection(Vector3.right);
-
-        bool isRunning = Input.GetKey(KeyCode.LeftShift);
-        float curSpeedX = canMove ? (isRunning ? kosuHizi : walkSpeed) * Input.GetAxis("Vertical") : 0; //W S
-        float curSpeedY = canMove ? (isRunning ? kosuHizi : walkSpeed) * Input.GetAxis("Horizontal") : 0; //A D
-        float movementDirectionY = moveDirection.y;
-        moveDirection = (forward * curSpeedX) + (right * curSpeedY);
-
 
         if (canMove)
         {
-            if (curSpeedX > 0 && isRunning)
-            {
+            Vector3 forward = transform.TransformDirection(Vector3.forward);
+            Vector3 right = transform.TransformDirection(Vector3.right);
 
-                anim.Play("Run");
-            }
-            else if (curSpeedX > 0)
+            if (Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.WindowsPlayer)
             {
-                //!Burayı eski haline getir bozuldu
-                anim.Play("Run");
-                Walk = true;
-            }
-            else if (curSpeedX == 0 && Walk)
-            {
-                Walk = false;
-                Invoke(nameof(WalkStop), 0.05f);
-            }
-            //Saga sola donme ekle
+                moveWS = Input.GetAxis("Vertical") * walkSpeed;
+                moveAD = Input.GetAxis("Horizontal") * walkSpeed;
 
+            }
+            else if (Application.platform == RuntimePlatform.Android)
+            {
+                moveWS = variableJoystick.Vertical * walkSpeed;
+                moveAD = variableJoystick.Horizontal * walkSpeed;
+            }
+
+
+            moveDirection = (forward * moveWS) + (right * moveAD);
+
+            if (moveDirection != Vector3.zero)
+            {
+                if (moveWS > 0)
+                {
+                    anim.SetBool("Back", false);
+                    anim.SetBool("Left", false);
+                    anim.SetBool("Right", false);
+                    anim.SetBool("Run", true);
+
+                }
+                else if (moveWS < 0)
+                {
+                    anim.SetBool("Run", false);
+                    anim.SetBool("Left", false);
+                    anim.SetBool("Right", false);
+                    anim.SetBool("Back", true);
+                }
+                if (moveAD > 0 && moveWS == 0)
+                {
+                    anim.SetBool("Run", false);
+                    anim.SetBool("Back", false);
+                    anim.SetBool("Right", false);
+                    anim.SetBool("Left", true);
+                }
+                else if (moveAD < 0 && moveWS == 0)
+                {
+                    anim.SetBool("Run", false);
+                    anim.SetBool("Back", false);
+                    anim.SetBool("Left", false);
+                    anim.SetBool("Right", true);
+                }
+            }
+            else
+            {
+                anim.SetBool("Run", false);
+                anim.SetBool("Back", false);
+                anim.SetBool("Left", false);
+                anim.SetBool("Right", false);
+
+            }
         }
 
-        if (!characterController.isGrounded)
-        {
-            moveDirection.y -= yercekimi * Time.deltaTime;
-        }
 
 
+
+
+
+        vSpeed -= yercekimi * Time.deltaTime;
+        moveDirection.y = vSpeed;
 
         characterController.Move(moveDirection * Time.deltaTime);
-
-
-        if (Input.GetKeyDown(KeyCode.J))
-        {
-            anim.Play("Punch");
-
-        }
-
-        if (Input.GetKeyDown(KeyCode.K))
-        {
-            anim.Play("Body Hit");
-
-        }
-        AnimasyonKontrol(animationName: "Punch");
-        AnimasyonKontrol(animationName: "Body Hit");
-
-
-
-
-
+        moveDirection.x = 0;
+        moveDirection.z = 0;
 
     }
 
-    void WalkStop()
-    {
-
-        anim.Play("Idle");
-    }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Enemy"))
+        if (other.CompareTag("player2") && canMove)
         {
-            print("fight Scene");
-            SkillUI.SetActive(true);
-         //   Invoke(nameof(FightScene), 1f);
-            enemyPosition = other.transform.position;
+            other.gameObject.GetComponent<PhotonView>().RPC("SahneDegis", RpcTarget.All, null);
+
+        }
+
+
+    }
+
+
+
+
+
+
+
+
+
+    public void Yetenek(string yetenekadi)
+    {
+        if (oyunYoneticisi.oyuncu1)
+        {
+            playerG.GetComponent<PhotonView>().RPC("HasarAl", RpcTarget.All, null);
+            playerG.GetComponent<PhotonView>().RPC("Bruteileri", RpcTarget.All, null);
+            anim.SetBool(yetenekadi, true);
+            yetenekV = true;
+            oyunYoneticisi.gameObject.GetComponent<PhotonView>().RPC("oyuncuDegistir", RpcTarget.All, null);
+
         }
     }
 
-    // void FightScene()
-    // {
-    //     anim.Play("Fight Idle");
-    //     canMove = false;
-    //     GetComponent<CameraFollow>().enabled = false;
-    // }
+
+    // ! Bunda sorun yok.
+    [PunRPC]
+    public void AnimasyonHazirla(string yetenekadi)
+    {
+
+
+
+        Can.value -= 10;
+
+
+    }
+
+
+
+
+
+
+
+
 
 
     void AnimasyonKontrol(string animationName)
     {
         if (anim.GetCurrentAnimatorStateInfo(0).IsName(animationName) && anim.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1.0f)
         {
-            anim.Play("Fight Idle");
-            Debug.Log(animationName + " Animasyon bitti");
-            transform.position = currentPostion;
+
+            anim.SetBool("Yetenek1", false);
+            anim.SetBool("Yetenek2", false);
+            anim.SetBool("Yetenek3", false);
+
+
+
+
+
+
+            if (yetenekV)
+            {
+                playerG.GetComponent<PhotonView>().RPC("BruteGeri", RpcTarget.All, null);
+                yetenekV = false;
+
+
+
+            }
+
+
         }
     }
 
 
-    public void Skill(string skillName)
+
+
+
+    [PunRPC]
+    public void SahneDegis()
     {
-        currentPostion = transform.position;
-        transform.position = enemyPosition;
-        anim.Play(skillName);
+        ptr2 = GameObject.FindGameObjectWithTag("ptr2").transform;
+        transform.position = ptr2.position;
+        transform.rotation = ptr2.rotation;
+        canMove = false;
+        GetComponentInChildren<Kamera>().enabled = false;
+        anim.SetBool("Back", false);
+        anim.SetBool("Left", false);
+        anim.SetBool("Right", false);
+        anim.SetBool("Run", false);
+        yetenekler.SetActive(true);
+        Joystick.SetActive(false);
+        saldirsavunGO.SetActive(true);
 
 
 
     }
+
+
+
+    // ! Bunda sorun yok.
+    [PunRPC]
+    public void HasarAl()
+    {
+
+        Can.value -= 10;
+        if (Can.value <= 0)
+        {
+            anim.SetBool("Die", true);
+            Destroy(this);
+        }
+
+
+    }
+
+    // ! Bunda sorun yok.
+    [PunRPC]
+    public void Ileri()
+    {
+        transform.position = ptr3.position;
+        transform.rotation = ptr3.rotation;
+    }
+
+    // ! Bunda sorun yok.
+    [PunRPC]
+    public void Geri()
+    {
+        transform.position = ptr2.position;
+        transform.rotation = ptr2.rotation;
+    }
+
+
+
 
 
 

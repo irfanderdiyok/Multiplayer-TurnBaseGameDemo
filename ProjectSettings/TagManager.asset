@@ -6,6 +6,14 @@ TagManager:
   tags:
   - Fire
   - Enemy
+  - player1
+  - player2
+  - ptr1
+  - ptr2
+  - ptr3
+  - yonetici
+  - buyu
+  - buyu2
   layers:
   - Default
   - TransparentFX
